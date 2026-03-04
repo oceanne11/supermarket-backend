@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmashMart — Products</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,700;0,9..144,900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            orange: '#EC6426', yellow: '#F8A91F', cream: '#FDE3CF',
+            green: '#2B573A', lightgreen: '#72AC43', brown: '#632713', pink: '#E4A5CA',
+          },
+          fontFamily: { display: ['Fraunces', 'serif'], body: ['DM Sans', 'sans-serif'] }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'DM Sans', sans-serif; background: #FDE3CF; }
+    h1, h2, h3 { font-family: 'Fraunces', serif; }
+    .toast {
+      position: fixed; top: 1.5rem; right: 1.5rem; z-index: 9999;
+      padding: 1rem 1.5rem; border-radius: 0.75rem; font-weight: 600;
+      transform: translateX(110%); transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+      max-width: 340px;
+    }
+    .toast.show { transform: translateX(0); }
+    .toast.success { background: #2B573A; color: #FDE3CF; }
+    .toast.error { background: #632713; color: #FDE3CF; }
+    .product-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+    .product-card:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(99,39,19,0.15); }
+    .form-input {
+      width: 100%; padding: 0.6rem 0.9rem; border: 2px solid #EC6426;
+      border-radius: 0.5rem; background: #fff; font-family: 'DM Sans', sans-serif;
+      font-size: 0.9rem; outline: none; transition: border-color 0.2s;
+    }
+    .form-input:focus { border-color: #2B573A; }
+    .sidebar-overlay {
+      position: fixed; inset: 0; background: rgba(99,39,19,0.4);
+      z-index: 40; opacity: 0; pointer-events: none; transition: opacity 0.3s;
+    }
+    .sidebar-overlay.open { opacity: 1; pointer-events: all; }
+    .sidebar {
+      position: fixed; right: 0; top: 0; height: 100vh; width: 420px; max-width: 95vw;
+      background: #fff; z-index: 50; transform: translateX(100%);
+      transition: transform 0.35s cubic-bezier(0.34,1.2,0.64,1);
+      overflow-y: auto; box-shadow: -8px 0 40px rgba(99,39,19,0.15);
+    }
+    .sidebar.open { transform: translateX(0); }
+    .img-placeholder { background: linear-gradient(135deg, #F8A91F22, #EC642622); display: flex; align-items: center; justify-content: center; }
+    .delete-confirm { position: fixed; inset: 0; z-index: 60; display: none; align-items: center; justify-content: center; background: rgba(99,39,19,0.45); }
+    .delete-confirm.open { display: flex; }
+    .cat-btn { background: transparent; color: #632713; border: 2px solid transparent; }
+    .cat-btn:hover { background: #EC642615; border-color: #EC6426; color: #EC6426; }
+    .cat-btn.active { background: #EC6426; color: white; border-color: #EC6426; }
+    @keyframes fadeInUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+    .fade-in { animation: fadeInUp 0.4s ease both; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #FDE3CF; }
+    ::-webkit-scrollbar-thumb { background: #EC6426; border-radius: 3px; }
+  </style>
+</head>
+<body class="min-h-screen">
+
+  <div id="toast" class="toast"></div>
+
+  <!-- Delete Modal -->
+  <div class="delete-confirm" id="deleteModal">
+    <div class="bg-white rounded-2xl p-8 max-w-sm w-full mx-4 text-center shadow-2xl">
+      <div class="w-16 h-16 bg-brown rounded-full flex items-center justify-center mx-auto mb-4">
+        <svg class="w-8 h-8 text-cream" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+      </div>
+      <h3 class="text-xl font-display font-bold text-brown mb-2">Delete Product?</h3>
+      <p class="text-sm text-brown/70 mb-6">This action cannot be undone.</p>
+      <div class="flex gap-3 justify-center">
+        <button onclick="closeDeleteModal()" class="px-5 py-2.5 rounded-xl border-2 border-brown/30 text-brown font-semibold hover:bg-cream transition-colors">Cancel</button>
+        <button id="confirmDeleteBtn" class="px-5 py-2.5 rounded-xl bg-brown text-cream font-semibold hover:bg-brown/80 transition-colors">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sidebar Overlay -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+  <!-- Form Sidebar -->
+  <div class="sidebar" id="formSidebar">
+    <div class="sticky top-0 bg-green px-6 py-5 flex items-center justify-between z-10">
+      <h2 class="text-cream font-display text-xl font-bold" id="formTitle">Add Product</h2>
+      <button onclick="closeSidebar()" class="w-9 h-9 flex items-center justify-center rounded-full bg-cream/20 hover:bg-cream/30 transition-colors text-cream">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+      </button>
+    </div>
+    <div class="p-6">
+      <form id="productForm" class="space-y-4">
+        <input type="hidden" id="productId" />
+        <div>
+          <label class="block text-brown font-semibold text-sm mb-1">Product Name *</label>
+          <input class="form-input" id="fieldName" type="text" placeholder="e.g. Organic Milk" required />
+        </div>
+        <div>
+          <label class="block text-brown font-semibold text-sm mb-1">Description</label>
+          <textarea class="form-input resize-none h-20" id="fieldDescription" placeholder="Short product description…"></textarea>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-brown font-semibold text-sm mb-1">Price (RWF) *</label>
+            <input class="form-input" id="fieldPrice" type="number" min="0" placeholder="0" required />
+          </div>
+          <div>
+            <label class="block text-brown font-semibold text-sm mb-1">Stock Qty</label>
+            <input class="form-input" id="fieldStock" type="number" min="0" placeholder="0" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-brown font-semibold text-sm mb-1">Category *</label>
+          <select class="form-input" id="fieldCategory" required>
+            <option value="">Select category…</option>
+            <option>Beverages</option><option>Dairy</option><option>Snacks</option>
+            <option>Bakery</option><option>Produce</option><option>Meat & Poultry</option>
+            <option>Frozen Foods</option><option>Condiments</option>
+            <option>Household</option><option>Personal Care</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-brown font-semibold text-sm mb-1">Product Image</label>
+          <div class="border-2 border-dashed border-orange rounded-xl p-4 text-center cursor-pointer hover:bg-orange/5 transition-colors relative">
+            <input type="file" accept="image/*" id="fieldImage" class="absolute inset-0 opacity-0 cursor-pointer" onchange="previewImage(this)" />
+            <div id="imagePreviewContainer" class="hidden">
+              <img id="imagePreview" src="" alt="Preview" class="h-32 object-contain mx-auto rounded-lg mb-2" />
+              <p class="text-xs text-brown/60" id="imageFileName"></p>
+            </div>
+            <div id="imagePlaceholder">
+              <svg class="w-10 h-10 text-orange mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+              <p class="text-sm text-brown/60">Click to upload image</p>
+            </div>
+          </div>
+          <p class="text-xs text-brown/50 mt-1" id="currentImageNote"></p>
+        </div>
+        <button type="submit" id="submitBtn" class="w-full py-3 rounded-xl bg-orange text-white font-display font-bold text-lg hover:bg-orange/90 active:scale-95 transition-all">
+          Save Product
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- NAV -->
+  <nav class="bg-green shadow-lg sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-orange rounded-xl flex items-center justify-center">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+        </div>
+        <div>
+          <h1 class="text-cream font-display font-bold text-xl leading-none">SmashMart</h1>
+          <p class="text-cream/60 text-xs">Products Manager</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <div id="userInfo" class="hidden items-center gap-2">
+          <div class="hidden sm:flex items-center gap-2 bg-cream/10 px-3 py-1.5 rounded-xl">
+            <div class="w-6 h-6 bg-orange rounded-full flex items-center justify-center text-white text-xs font-bold" id="userInitial"></div>
+            <div>
+              <p class="text-cream text-xs font-semibold leading-none" id="userName"></p>
+              <p class="text-cream/50 text-xs leading-none mt-0.5 capitalize" id="userRole"></p>
+            </div>
+          </div>
+          <button onclick="logout()" class="px-3 py-2 text-cream/70 hover:text-cream text-sm font-semibold transition-colors">Logout</button>
+        </div>
+
+        <a id="loginLink" href="auth.html" class="hidden px-4 py-2 bg-cream/20 text-cream rounded-xl font-semibold text-sm hover:bg-cream/30 transition-colors">Login</a>
+
+        <button id="addBtn" onclick="openSidebar()" class="hidden items-center gap-2 px-4 py-2.5 bg-orange text-white rounded-xl font-semibold text-sm hover:bg-orange/90 transition-colors active:scale-95">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+          <span class="hidden sm:inline">Add Product</span>
+          <span class="sm:hidden">Add</span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- FILTERS -->
+  <div class="bg-white/70 backdrop-blur border-b border-orange/20 sticky top-[72px] z-20">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center gap-2">
+      <button onclick="filterCategory('')" class="cat-btn active px-3 py-1.5 rounded-lg text-sm font-semibold transition-all" data-cat="">All</button>
+      <button onclick="filterCategory('Beverages')" class="cat-btn px-3 py-1.5 rounded-lg text-sm font-semibold" data-cat="Beverages">Beverages</button>
+      <button onclick="filterCategory('Dairy')" class="cat-btn px-3 py-1.5 rounded-lg text-sm font-semibold" data-cat="Dairy">Dairy</button>
+      <button onclick="filterCategory('Snacks')" class="cat-btn px-3 py-1.5 rounded-lg text-sm font-semibold" data-cat="Snacks">Snacks</button>
+      <button onclick="filterCategory('Bakery')" class="cat-btn px-3 py-1.5 rounded-lg text-sm font-semibold" data-cat="Bakery">Bakery</button>
+      <button onclick="filterCategory('Produce')" class="cat-btn px-3 py-1.5 rounded-lg text-sm font-semibold" data-cat="Produce">Produce</button>
+      <div class="ml-auto">
+        <input id="searchInput" oninput="searchProducts(this.value)" type="text" placeholder="Search products…"
+          class="border-2 border-orange/40 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-orange bg-white w-40 sm:w-52" />
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+    <div id="loadingState" class="text-center py-24">
+      <div class="w-16 h-16 border-4 border-orange/30 border-t-orange rounded-full animate-spin mx-auto mb-4"></div>
+      <p class="text-brown/60 font-semibold">Loading products…</p>
+    </div>
+    <div id="emptyState" class="hidden text-center py-24">
+      <div class="w-24 h-24 bg-orange/10 rounded-full flex items-center justify-center mx-auto mb-6">
+        <svg class="w-12 h-12 text-orange" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+      </div>
+      <h3 class="font-display text-2xl font-bold text-brown mb-2">No products yet</h3>
+      <p class="text-brown/60 mb-6">No products found.</p>
+    </div>
+    <div id="productGrid" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"></div>
+  </main>
+
+  <script>
+    const API_PRODUCTS = 'http://localhost:5000/api/products';
+    let allProducts = [];
+    let activeCategory = '';
+    let deleteTargetId = null;
+    let currentUser = null;
+    let token = null;
+
+    // ─── AUTH INIT ────────────────────────────────────────
+    function initAuth() {
+      token = localStorage.getItem('token');
+      const userStr = localStorage.getItem('user');
+      if (userStr) currentUser = JSON.parse(userStr);
+
+      if (currentUser) {
+        document.getElementById('userInfo').classList.remove('hidden');
+        document.getElementById('userInfo').classList.add('flex');
+        document.getElementById('loginLink').classList.add('hidden');
+        document.getElementById('userName').textContent = currentUser.name;
+        document.getElementById('userRole').textContent = currentUser.role;
+        document.getElementById('userInitial').textContent = currentUser.name[0].toUpperCase();
+
+        // Admin and Manager can manage products
+        if (currentUser.role === 'admin' || currentUser.role === 'manager') {
+          document.getElementById('addBtn').classList.remove('hidden');
+          document.getElementById('addBtn').classList.add('flex');
+        }
+      } else {
+        document.getElementById('loginLink').classList.remove('hidden');
+        document.getElementById('userInfo').classList.add('hidden');
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = 'auth.html';
+    }
+
+    // ─── LOAD ─────────────────────────────────────────────
+    async function loadProducts() {
+      showLoading(true);
+      try {
+        const url = activeCategory ? `${API_PRODUCTS}?category=${encodeURIComponent(activeCategory)}` : API_PRODUCTS;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Failed to fetch');
+        allProducts = await res.json();
+        renderProducts(allProducts);
+      } catch (err) {
+        showToast('Failed to load products. Is the server running?', 'error');
+        showLoading(false);
+      }
+    }
+
+    // ─── RENDER ───────────────────────────────────────────
+    function renderProducts(products) {
+      showLoading(false);
+      const grid = document.getElementById('productGrid');
+      const empty = document.getElementById('emptyState');
+
+      // Admin and Manager can see edit/delete buttons
+      const canManage = currentUser?.role === 'admin' || currentUser?.role === 'manager';
+
+      if (products.length === 0) {
+        grid.classList.add('hidden');
+        empty.classList.remove('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+      grid.classList.remove('hidden');
+
+      grid.innerHTML = products.map((p, i) => {
+        const imgSrc = p.image ? `http://localhost:5000/uploads/${p.image}` : '';
+        const inStock = p.stock > 0;
+        const catColor = getCategoryColor(p.category);
+
+        return `
+        <div class="product-card bg-white rounded-2xl overflow-hidden shadow-md fade-in" style="animation-delay:${i * 0.04}s">
+          <div class="relative h-44 ${imgSrc ? '' : 'img-placeholder'}">
+            ${imgSrc
+              ? `<img src="${imgSrc}" alt="${escapeHtml(p.name)}" class="w-full h-full object-cover" onerror="this.parentElement.classList.add('img-placeholder'); this.remove()" />`
+              : `<svg class="w-12 h-12 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>`
+            }
+            <span class="absolute top-3 right-3 text-xs font-bold px-2.5 py-1 rounded-full ${inStock ? 'bg-lightgreen text-white' : 'bg-brown text-cream'}">
+              ${inStock ? '✓ In Stock' : '✗ Out of Stock'}
+            </span>
+          </div>
+          <div class="p-4">
+            <h3 class="font-display font-bold text-brown text-base leading-snug mb-1">${escapeHtml(p.name)}</h3>
+            <span class="inline-block px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide mb-2" style="background:${catColor}22; color:${catColor}">${escapeHtml(p.category)}</span>
+            ${p.description ? `<p class="text-xs text-brown/55 mt-1 line-clamp-2">${escapeHtml(p.description)}</p>` : ''}
+            <div class="mt-3 flex items-center justify-between">
+              <div>
+                <p class="font-display font-bold text-orange text-lg">${formatPrice(p.price)}</p>
+                <p class="text-xs text-brown/50">${p.stock} units</p>
+              </div>
+              ${canManage ? `
+              <div class="flex gap-2">
+                <button onclick="openEditForm('${p._id}')" class="w-9 h-9 flex items-center justify-center rounded-xl bg-green/10 text-green hover:bg-green/20 transition-colors" title="Edit">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                </button>
+                <button onclick="openDeleteModal('${p._id}')" class="w-9 h-9 flex items-center justify-center rounded-xl bg-brown/10 text-brown hover:bg-brown/20 transition-colors" title="Delete">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                </button>
+              </div>` : ''}
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    // ─── CREATE ───────────────────────────────────────────
+    async function createProduct(formData) {
+      const res = await fetch(API_PRODUCTS, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      return data;
+    }
+
+    // ─── UPDATE ───────────────────────────────────────────
+    async function updateProduct(id, formData) {
+      const res = await fetch(`${API_PRODUCTS}/${id}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      return data;
+    }
+
+    // ─── DELETE ───────────────────────────────────────────
+    async function deleteProduct(id) {
+      const res = await fetch(`${API_PRODUCTS}/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      return data;
+    }
+
+    // ─── FORM SUBMIT ──────────────────────────────────────
+    document.getElementById('productForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('productId').value;
+      const btn = document.getElementById('submitBtn');
+
+      const fd = new FormData();
+      fd.append('name', document.getElementById('fieldName').value.trim());
+      fd.append('description', document.getElementById('fieldDescription').value.trim());
+      fd.append('price', document.getElementById('fieldPrice').value);
+      fd.append('category', document.getElementById('fieldCategory').value);
+      fd.append('stock', document.getElementById('fieldStock').value || '0');
+      const imgFile = document.getElementById('fieldImage').files[0];
+      if (imgFile) fd.append('image', imgFile);
+
+      btn.disabled = true;
+      btn.textContent = 'Saving…';
+
+      try {
+        if (id) {
+          await updateProduct(id, fd);
+          showToast('Product updated!', 'success');
+        } else {
+          await createProduct(fd);
+          showToast('Product added!', 'success');
+        }
+        closeSidebar();
+        await loadProducts();
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Product';
+      }
+    });
+
+    // ─── SIDEBAR ──────────────────────────────────────────
+    function openSidebar() {
+      document.getElementById('formTitle').textContent = 'Add Product';
+      document.getElementById('productId').value = '';
+      document.getElementById('productForm').reset();
+      resetImagePreview();
+      document.getElementById('currentImageNote').textContent = '';
+      document.getElementById('formSidebar').classList.add('open');
+      document.getElementById('sidebarOverlay').classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function openEditForm(id) {
+      const p = allProducts.find(p => p._id === id);
+      if (!p) return;
+      document.getElementById('formTitle').textContent = 'Edit Product';
+      document.getElementById('productId').value = p._id;
+      document.getElementById('fieldName').value = p.name;
+      document.getElementById('fieldDescription').value = p.description || '';
+      document.getElementById('fieldPrice').value = p.price;
+      document.getElementById('fieldCategory').value = p.category;
+      document.getElementById('fieldStock').value = p.stock;
+      document.getElementById('currentImageNote').textContent = p.image ? `Current: ${p.image}` : '';
+      resetImagePreview();
+      document.getElementById('formSidebar').classList.add('open');
+      document.getElementById('sidebarOverlay').classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeSidebar() {
+      document.getElementById('formSidebar').classList.remove('open');
+      document.getElementById('sidebarOverlay').classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    // ─── DELETE MODAL ─────────────────────────────────────
+    function openDeleteModal(id) {
+      deleteTargetId = id;
+      document.getElementById('deleteModal').classList.add('open');
+    }
+
+    function closeDeleteModal() {
+      deleteTargetId = null;
+      document.getElementById('deleteModal').classList.remove('open');
+    }
+
+    document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
+      if (!deleteTargetId) return;
+      try {
+        await deleteProduct(deleteTargetId);
+        showToast('Product deleted.', 'success');
+        closeDeleteModal();
+        await loadProducts();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    });
+
+    // ─── FILTER & SEARCH ──────────────────────────────────
+    function filterCategory(cat) {
+      activeCategory = cat;
+      document.querySelectorAll('.cat-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.cat === cat);
+      });
+      loadProducts();
+    }
+
+    function searchProducts(query) {
+      const q = query.toLowerCase();
+      const filtered = allProducts.filter(p =>
+        p.name.toLowerCase().includes(q) ||
+        p.category.toLowerCase().includes(q) ||
+        (p.description && p.description.toLowerCase().includes(q))
+      );
+      renderProducts(filtered);
+    }
+
+    // ─── IMAGE PREVIEW ────────────────────────────────────
+    function previewImage(input) {
+      const file = input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        document.getElementById('imagePreview').src = e.target.result;
+        document.getElementById('imageFileName').textContent = file.name;
+        document.getElementById('imagePreviewContainer').classList.remove('hidden');
+        document.getElementById('imagePlaceholder').classList.add('hidden');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function resetImagePreview() {
+      document.getElementById('imagePreviewContainer').classList.add('hidden');
+      document.getElementById('imagePlaceholder').classList.remove('hidden');
+      document.getElementById('fieldImage').value = '';
+    }
+
+    // ─── TOAST ────────────────────────────────────────────
+    let toastTimer;
+    function showToast(msg, type = 'success') {
+      const toast = document.getElementById('toast');
+      toast.textContent = (type === 'success' ? '✓ ' : '✗ ') + msg;
+      toast.className = `toast ${type} show`;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 3500);
+    }
+
+    // ─── HELPERS ──────────────────────────────────────────
+    function showLoading(show) {
+      document.getElementById('loadingState').classList.toggle('hidden', !show);
+      if (show) {
+        document.getElementById('productGrid').classList.add('hidden');
+        document.getElementById('emptyState').classList.add('hidden');
+      }
+    }
+
+    function formatPrice(n) { return 'RWF ' + Number(n).toLocaleString(); }
+
+    function escapeHtml(str) {
+      const d = document.createElement('div');
+      d.appendChild(document.createTextNode(str || ''));
+      return d.innerHTML;
+    }
+
+    function getCategoryColor(cat) {
+      const map = {
+        'Beverages': '#2B573A', 'Dairy': '#F8A91F', 'Snacks': '#EC6426',
+        'Bakery': '#632713', 'Produce': '#72AC43', 'Meat & Poultry': '#E4A5CA',
+        'Frozen Foods': '#2B573A', 'Condiments': '#F8A91F',
+        'Household': '#EC6426', 'Personal Care': '#E4A5CA'
+      };
+      return map[cat] || '#632713';
+    }
+
+    // ─── INIT ─────────────────────────────────────────────
+    initAuth();
+    loadProducts();
+  </script>
+</body>
+</html>

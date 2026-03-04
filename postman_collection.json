@@ -1,0 +1,117 @@
+{
+  "info": {
+    "name": "Supermarket API — Products CRUD",
+    "description": "Complete CRUD endpoints for the Supermarket Products API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "GET All Products",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost:5000/api/products",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "products"]
+        }
+      }
+    },
+    {
+      "name": "GET All Products — Filter by Category",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost:5000/api/products?category=Dairy",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "products"],
+          "query": [{ "key": "category", "value": "Dairy" }]
+        }
+      }
+    },
+    {
+      "name": "GET Single Product by ID",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost:5000/api/products/{{productId}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "products", "{{productId}}"]
+        }
+      }
+    },
+    {
+      "name": "POST Create Product (with image)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "name", "value": "Organic Whole Milk", "type": "text" },
+            { "key": "description", "value": "Fresh organic whole milk from local farms", "type": "text" },
+            { "key": "price", "value": "1500", "type": "text" },
+            { "key": "category", "value": "Dairy", "type": "text" },
+            { "key": "stock", "value": "50", "type": "text" },
+            { "key": "image", "type": "file", "src": "" }
+          ]
+        },
+        "url": {
+          "raw": "http://localhost:5000/api/products",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "products"]
+        }
+      }
+    },
+    {
+      "name": "PUT Update Product (with image)",
+      "request": {
+        "method": "PUT",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "name", "value": "Updated Product Name", "type": "text" },
+            { "key": "price", "value": "2000", "type": "text" },
+            { "key": "stock", "value": "30", "type": "text" },
+            { "key": "image", "type": "file", "src": "" }
+          ]
+        },
+        "url": {
+          "raw": "http://localhost:5000/api/products/{{productId}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "products", "{{productId}}"]
+        }
+      }
+    },
+    {
+      "name": "DELETE Product by ID",
+      "request": {
+        "method": "DELETE",
+        "url": {
+          "raw": "http://localhost:5000/api/products/{{productId}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "products", "{{productId}}"]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "productId",
+      "value": "REPLACE_WITH_ACTUAL_MONGO_ID",
+      "description": "Replace with a real MongoDB _id after creating a product"
+    }
+  ]
+}
